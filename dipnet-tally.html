@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Salmon Tally">
+<meta name="theme-color" content="#12211D">
+<title>Salmon Tally — UCI 2026</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: 'Avenir Next','Segoe UI',system-ui,-apple-system,sans-serif;
+    background: #EFF3F1; color: #182420;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+  button { font-family: inherit; cursor: pointer; }
+  header {
+    background: #12211D; color: #EAF4EF;
+    padding: calc(22px + env(safe-area-inset-top)) 18px 20px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .headrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .eyebrow { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; opacity: .65; margin-bottom: 4px; }
+  h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.3px; }
+  .permit { border: 1px solid rgba(255,255,255,.25); border-radius: 10px; padding: 6px 12px; text-align: right; }
+  .permit small { display: block; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; opacity: .6; }
+  .permit b { font-size: 16px; font-variant-numeric: tabular-nums; }
+  .gaugelabels { display: flex; justify-content: space-between; font-size: 14px; margin: 18px 0 6px; }
+  .track { position: relative; height: 14px; border-radius: 7px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .fill { height: 100%; border-radius: 7px; transition: width .4s ease; background: linear-gradient(90deg,#2E7D68,#5FB89E); }
+  .fill.hot { background: linear-gradient(90deg,#C8442E,#FF7A54); }
+  .tick { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.35); }
+  .strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; background: rgba(255,255,255,.08); border-radius: 999px; padding: 4px 10px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .card {
+    background: #fff; border-radius: 16px; padding: 18px;
+    max-width: 640px; margin: -14px auto 0;
+    box-shadow: 0 4px 18px rgba(18,33,29,.10);
+  }
+  .cardtitle { font-size: 13px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #4B5A54; }
+  .metarow { display: flex; gap: 12px; margin: 14px 0; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
+  .label { font-size: 11.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #6B7A73; }
+  input[type=date] {
+    padding: 10px 12px; border-radius: 10px; border: 1.5px solid #D5DEDA;
+    font-size: 15px; font-family: inherit; background: #FAFCFB; width: 100%;
+  }
+  .segment { display: flex; border-radius: 10px; overflow: hidden; border: 1.5px solid #D5DEDA; }
+  .segment button { flex: 1; padding: 10px 0; border: none; background: #FAFCFB; font-size: 15px; color: #4B5A54; }
+  .segment button.on { background: #12211D; color: #EAF4EF; font-weight: 700; }
+  .locgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .locgrid button {
+    padding: 12px 8px; border-radius: 10px; border: 1.5px solid #D5DEDA;
+    background: #FAFCFB; font-size: 14.5px; color: #33413B;
+  }
+  .locgrid button.on { background: #1E3A34; border-color: #1E3A34; color: #D7F0E6; font-weight: 700; }
+  .ctrgrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 10px; margin-top: 8px; }
+  .ctr { border: 1.5px solid #E2E9E5; border-radius: 12px; padding: 10px 10px 12px; background: #FAFCFB; }
+  .ctrhead { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
+  .ctrrow { display: flex; align-items: center; gap: 8px; }
+  .bump {
+    width: 48px; height: 44px; border-radius: 10px; border: none;
+    background: #E7EDEA; color: #33413B; font-size: 24px; font-weight: 700; line-height: 1;
+    transition: transform .08s;
+  }
+  .bump:active { transform: scale(.92); }
+  .bump.plus { background: #1E3A34; color: #D7F0E6; }
+  .count { flex: 1; text-align: center; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .logbtn {
+    width: 100%; margin-top: 16px; padding: 16px 0; border-radius: 12px; border: none;
+    background: #C8442E; color: #FFF4F0; font-size: 17px; font-weight: 800; letter-spacing: .3px;
+  }
+  .logbtn:disabled { opacity: .45; cursor: not-allowed; }
+  .hint { font-size: 12.5px; color: #8A968F; margin-top: 8px; text-align: center; }
+  .sechead { max-width: 640px; margin: 24px auto 10px; padding: 0 18px; display: flex; justify-content: space-between; align-items: baseline; }
+  .savenote { font-size: 12px; color: #6B7A73; }
+  .empty { max-width: 640px; margin: 0 auto; padding: 24px 18px; text-align: center; color: #8A968F; font-size: 14px; }
+  .day { background: #fff; border-radius: 14px; max-width: 640px; margin: 0 auto 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(18,33,29,.06); }
+  .dayhead {
+    width: 100%; display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; background: none; border: none; text-align: left;
+  }
+  .daydate { font-size: 16px; font-weight: 800; color: #182420; }
+  .daymeta { font-size: 12.5px; color: #6B7A73; margin-top: 2px; }
+  .daybig { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .chev { color: #8A968F; margin-left: 10px; }
+  .daybody { border-top: 1px solid #EDF1EF; padding: 6px 16px 14px; }
+  .trow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #EDF1EF; }
+  .ttime { font-size: 12.5px; color: #6B7A73; width: 64px; flex-shrink: 0; }
+  .tchips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; background: #F2F5F3; border-radius: 999px; padding: 3px 9px; font-variant-numeric: tabular-nums; }
+  .chip.bold { font-weight: 700; }
+  .del { border: none; background: none; color: #B4574A; font-size: 14px; padding: 6px; }
+  .totalrow { display: flex; align-items: center; gap: 10px; padding: 12px 0 4px; }
+  .totalrow .lbl { font-weight: 800; font-size: 13px; letter-spacing: .5px; }
+  .xferrow { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #4B5A54; margin-top: 10px; }
+  .xferrow input { width: 18px; height: 18px; }
+  footer { max-width: 640px; margin: 26px auto 0; padding: 0 18px; font-size: 12.5px; color: #8A968F; display: flex; flex-direction: column; gap: 14px; }
+  .btnrow { display: flex; gap: 10px; flex-wrap: wrap; }
+  .ghost { border: 1px solid #C3CFC9; background: #fff; color: #33413B; border-radius: 8px; padding: 8px 14px; font-size: 13px; }
+  .danger { border: 1px solid #D9C2BE; background: none; color: #B4574A; border-radius: 8px; padding: 8px 14px; font-size: 13px; }
+  .bkpanel { background: #fff; border: 1px solid #E2E9E5; border-radius: 12px; padding: 14px; display: none; flex-direction: column; gap: 10px; }
+  .bkpanel.show { display: flex; }
+  .bkpanel textarea { width: 100%; font-family: ui-monospace,Menlo,monospace; font-size: 11.5px; border-radius: 8px; border: 1px solid #D5DEDA; padding: 8px; resize: vertical; }
+  .warn { background: #7A2E1E; color: #FFE9E2; padding: 12px 18px; font-size: 13.5px; line-height: 1.45; display: none; }
+  .warn.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="warn" id="warnBanner"></div>
+
+<header>
+  <div class="wrap">
+    <div class="headrow">
+      <div>
+        <div class="eyebrow">ADF&amp;G · Upper Cook Inlet · Personal Use · 2026</div>
+        <h1>Harvest Tally</h1>
+      </div>
+      <div class="permit"><small>Permit</small><b>4617116</b></div>
+    </div>
+    <div class="gaugelabels">
+      <span style="font-weight:700">Season salmon <span id="gSalmon" style="color:#9BD4C4">0</span><span style="opacity:.6"> / 75</span></span>
+      <span style="opacity:.7">Flounder <span id="gFlounder">0</span> / 10</span>
+    </div>
+    <div class="track">
+      <div class="fill" id="gaugeFill" style="width:0%"></div>
+      <div class="tick" style="left:33.3%"></div>
+      <div class="tick" style="left:66.6%"></div>
+    </div>
+    <div class="strip" id="speciesStrip"></div>
+  </div>
+</header>
+
+<section class="card">
+  <div class="cardtitle">Log a tally</div>
+  <div class="metarow">
+    <label class="field">
+      <span class="label">Date</span>
+      <input type="date" id="dateInput">
+    </label>
+    <div class="field">
+      <span class="label">Guide used</span>
+      <div class="segment" id="guideSeg">
+        <button data-g="No" class="on">No</button>
+        <button data-g="Yes">Yes</button>
+      </div>
+    </div>
+  </div>
+  <div class="label">Location fished (choose one)</div>
+  <div class="locgrid" id="locGrid"></div>
+  <div class="label" style="margin-top:18px">Fish this trip</div>
+  <div class="ctrgrid" id="ctrGrid"></div>
+  <button class="logbtn" id="logBtn" disabled>Log trip — no catch</button>
+  <div class="hint" id="logHint">Pick a location to log — ADF&amp;G requires reporting every day fished, even with no catch.</div>
+</section>
+
+<div class="sechead">
+  <span class="cardtitle">Day log</span>
+  <span class="savenote" id="saveNote"></span>
+</div>
+<div id="dayList"></div>
+<div class="empty" id="emptyMsg">No days logged yet. Your first tally will appear here.</div>
+
+<footer>
+  <div>This tally is a scratch sheet only — the official record is your paper permit or the ADF&amp;G mobile app. Report to ADF&amp;G by Aug 31, 2026.</div>
+  <div class="btnrow">
+    <button class="ghost" id="backupBtn">Backup data</button>
+    <button class="ghost" id="restoreBtn">Restore from backup</button>
+    <button class="danger" id="resetBtn">Reset season</button>
+  </div>
+  <div class="bkpanel" id="bkPanel">
+    <div style="font-size:13px;font-weight:700;color:#4B5A54">Backup / restore</div>
+    <div>To back up: tap Copy and paste the text somewhere safe (Notes, email to yourself). To restore: paste a backup below and tap Restore.</div>
+    <textarea id="bkText" rows="4" placeholder="Backup text appears here, or paste one to restore"></textarea>
+    <div class="btnrow">
+      <button class="ghost" id="copyBtn">Copy</button>
+      <button class="ghost" id="doRestoreBtn">Restore</button>
+      <button class="danger" id="closeBkBtn">Close</button>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var SPECIES = [
+    { key: "red", label: "Red", color: "#C8442E" },
+    { key: "chum", label: "Chum", color: "#7D6B5D" },
+    { key: "king", label: "King", color: "#2E5E4E" },
+    { key: "coho", label: "Coho", color: "#B0722A" },
+    { key: "pink", label: "Pink", color: "#C77B8E" },
+    { key: "flounder", label: "Flounder", color: "#5A6B7A" }
+  ];
+  var SALMON_KEYS = ["red", "chum", "king", "coho", "pink"];
+  var LOCATIONS = ["Kenai River", "Fish Creek", "Kasilof River", "Susitna River"];
+  var SALMON_LIMIT = 75, FLOUNDER_LIMIT = 10;
+  var KEY = "uci-permit-2026";
+
+  var days = [], draft = {}, location = "", guide = "No", expanded = {};
+  var storageOk = true;
+
+  function emptyCounts() {
+    var o = {};
+    SPECIES.forEach(function (s) { o[s.key] = 0; });
+    return o;
+  }
+  draft = emptyCounts();
+
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function timeStr() {
+    var d = new Date(), h = d.getHours(), m = String(d.getMinutes()).padStart(2, "0");
+    var ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+    return h + ":" + m + " " + ap;
+  }
+  function fmtDate(iso) {
+    var p = iso.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  }
+  function sumCounts(list) {
+    var t = emptyCounts();
+    list.forEach(function (c) { SPECIES.forEach(function (s) { t[s.key] += c[s.key] || 0; }); });
+    return t;
+  }
+  function salmonOf(c) {
+    return SALMON_KEYS.reduce(function (a, k) { return a + (c[k] || 0); }, 0);
+  }
+
+  // ---- storage ----
+  function testStorage() {
+    try {
+      localStorage.setItem("__t", "1");
+      localStorage.removeItem("__t");
+      return true;
+    } catch (e) { return false; }
+  }
+  function load() {
+    storageOk = testStorage();
+    if (!storageOk) {
+      showWarn("⚠ This browser is blocking saved data (this can happen in Private Browsing). Open in a regular Safari tab, or use Backup before closing.");
+      return;
+    }
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var d = JSON.parse(raw);
+        if (Array.isArray(d.days)) days = d.days;
+      }
+    } catch (e) {}
+  }
+  function save() {
+    if (!storageOk) return;
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ days: days }));
+      note("Saved ✓");
+      setTimeout(function () { note(""); }, 1500);
+    } catch (e) {
+      showWarn("⚠ Save failed — use Backup below to copy your data before closing.");
+    }
+  }
+  function note(t) { document.getElementById("saveNote").textContent = t; }
+  function showWarn(t) {
+    var w = document.getElementById("warnBanner");
+    w.textContent = t; w.classList.add("show");
+  }
+
+  // ---- render ----
+  function renderHeader() {
+    var totals = sumCounts(days.reduce(function (a, d) {
+      return a.concat(d.tallies.map(function (t) { return t.counts; }));
+    }, []));
+    var sal = salmonOf(totals);
+    document.getElementById("gSalmon").textContent = sal;
+    document.getElementById("gSalmon").style.color = sal >= SALMON_LIMIT * 0.9 ? "#FF9E7A" : "#9BD4C4";
+    document.getElementById("gFlounder").textContent = totals.flounder;
+    var fill = document.getElementById("gaugeFill");
+    fill.style.width = Math.min(100, sal / SALMON_LIMIT * 100) + "%";
+    fill.className = "fill" + (sal >= SALMON_LIMIT * 0.9 ? " hot" : "");
+    document.getElementById("speciesStrip").innerHTML = SPECIES.map(function (s) {
+      return '<span class="pill"><span class="dot" style="background:' + s.color + '"></span>' + s.label + ' <b>&nbsp;' + totals[s.key] + '</b></span>';
+    }).join("");
+  }
+
+  function renderCounters() {
+    document.getElementById("ctrGrid").innerHTML = SPECIES.map(function (s) {
+      return '<div class="ctr"><div class="ctrhead"><span class="dot" style="background:' + s.color + '"></span>' + s.label + '</div>' +
+        '<div class="ctrrow"><button class="bump" data-k="' + s.key + '" data-d="-1" aria-label="Remove one ' + s.label + '">−</button>' +
+        '<span class="count" id="c-' + s.key + '">' + draft[s.key] + '</span>' +
+        '<button class="bump plus" data-k="' + s.key + '" data-d="1" aria-label="Add one ' + s.label + '">+</button></div></div>';
+    }).join("");
+  }
+
+  function renderLog() {
+    var total = SPECIES.reduce(function (a, s) { return a + draft[s.key]; }, 0);
+    var btn = document.getElementById("logBtn");
+    btn.textContent = total === 0 ? "Log trip — no catch" : "Log tally · " + total + " fish";
+    btn.disabled = !location;
+    document.getElementById("logHint").style.display = location ? "none" : "block";
+  }
+
+  function renderDays() {
+    var list = document.getElementById("dayList");
+    document.getElementById("emptyMsg").style.display = days.length ? "none" : "block";
+    list.innerHTML = days.map(function (d, di) {
+      var dayTotal = sumCounts(d.tallies.map(function (t) { return t.counts; }));
+      var all = salmonOf(dayTotal) + dayTotal.flounder;
+      var open = !!expanded[d.date];
+      var html = '<div class="day"><button class="dayhead" data-toggle="' + d.date + '">' +
+        '<div><div class="daydate">' + fmtDate(d.date) + '</div>' +
+        '<div class="daymeta">' + d.location + ' · Guide: ' + d.guide + ' · ' + d.tallies.length + (d.tallies.length === 1 ? ' tally' : ' tallies') + '</div></div>' +
+        '<div><span class="daybig">' + all + '</span><span class="chev">' + (open ? "▾" : "▸") + '</span></div></button>';
+      if (open) {
+        html += '<div class="daybody">';
+        d.tallies.forEach(function (t, ti) {
+          var chips = SPECIES.filter(function (s) { return t.counts[s.key] > 0; }).map(function (s) {
+            return '<span class="chip"><span class="dot" style="background:' + s.color + '"></span>' + t.counts[s.key] + '</span>';
+          }).join("") || '<span style="opacity:.5;font-size:13px">no catch</span>';
+          html += '<div class="trow"><span class="ttime">' + t.time + '</span><span class="tchips">' + chips + '</span>' +
+            '<button class="del" data-day="' + d.date + '" data-tally="' + ti + '" aria-label="Delete tally">✕</button></div>';
+        });
+        html += '<div class="totalrow"><span class="lbl">DAILY TOTAL</span><span class="tchips">' +
+          SPECIES.map(function (s) {
+            return '<span class="chip bold"><span class="dot" style="background:' + s.color + '"></span>' + dayTotal[s.key] + '</span>';
+          }).join("") + '</span></div>';
+        html += '<label class="xferrow"><input type="checkbox" data-xfer="' + d.date + '"' + (d.transferred ? " checked" : "") + '> Recorded on paper permit / ADF&amp;G app</label>';
+        html += '</div>';
+      }
+      html += '</div>';
+      return html;
+    }).join("");
+  }
+
+  function renderAll() { renderHeader(); renderLog(); renderDays(); }
+
+  // ---- events ----
+  document.getElementById("ctrGrid").addEventListener("click", function (e) {
+    var b = e.target.closest(".bump");
+    if (!b) return;
+    var k = b.dataset.k, delta = +b.dataset.d;
+    draft[k] = Math.max(0, draft[k] + delta);
+    document.getElementById("c-" + k).textContent = draft[k];
+    renderLog();
+  });
+
+  document.getElementById("locGrid").innerHTML = LOCATIONS.map(function (l) {
+    return '<button data-loc="' + l + '">' + l + '</button>';
+  }).join("");
+  document.getElementById("locGrid").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    location = b.dataset.loc;
+    Array.prototype.forEach.call(document.querySelectorAll("#locGrid button"), function (x) {
+      x.classList.toggle("on", x.dataset.loc === location);
+    });
+    renderLog();
+  });
+
+  document.getElementById("guideSeg").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    guide = b.dataset.g;
+    Array.prototype.forEach.call(document.querySelectorAll("#guideSeg button"), function (x) {
+      x.classList.toggle("on", x.dataset.g === guide);
+    });
+  });
+
+  var dateInput = document.getElementById("dateInput");
+  dateInput.value = todayStr();
+  dateInput.addEventListener("change", function () {
+    var ex = days.find(function (d) { return d.date === dateInput.value; });
+    if (ex) {
+      location = ex.location; guide = ex.guide;
+      Array.prototype.forEach.call(document.querySelectorAll("#locGrid button"), function (x) {
+        x.classList.toggle("on", x.dataset.loc === location);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#guideSeg button"), function (x) {
+        x.classList.toggle("on", x.dataset.g === guide);
+      });
+      renderLog();
+    }
+  });
+
+  document.getElementById("logBtn").addEventListener("click", function () {
+    if (!location) return;
+    var tally = { time: timeStr(), counts: JSON.parse(JSON.stringify(draft)) };
+    var date = dateInput.value || todayStr();
+    var ex = days.find(function (d) { return d.date === date; });
+    if (ex) {
+      ex.location = location; ex.guide = guide;
+      ex.tallies.push(tally);
+    } else {
+      days.push({ date: date, location: location, guide: guide, tallies: [tally] });
+      days.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    }
+    draft = emptyCounts();
+    expanded[date] = true;
+    renderCounters(); renderAll(); save();
+  });
+
+  document.getElementById("dayList").addEventListener("click", function (e) {
+    var t = e.target.closest("[data-toggle]");
+    if (t) {
+      var d = t.dataset.toggle;
+      expanded[d] = !expanded[d];
+      renderDays();
+      return;
+    }
+    var del = e.target.closest(".del");
+    if (del) {
+      var dayDate = del.dataset.day, idx = +del.dataset.tally;
+      days = days.map(function (d) {
+        if (d.date !== dayDate) return d;
+        d.tallies.splice(idx, 1);
+        return d;
+      }).filter(function (d) { return d.tallies.length > 0; });
+      renderAll(); save();
+    }
+  });
+
+  document.getElementById("dayList").addEventListener("change", function (e) {
+    var x = e.target.closest("[data-xfer]");
+    if (!x) return;
+    var d = days.find(function (dd) { return dd.date === x.dataset.xfer; });
+    if (d) { d.transferred = x.checked; save(); }
+  });
+
+  // backup / restore / reset
+  var bkPanel = document.getElementById("bkPanel"), bkText = document.getElementById("bkText");
+  document.getElementById("backupBtn").addEventListener("click", function () {
+    bkText.value = JSON.stringify({ days: days });
+    bkPanel.classList.add("show");
+  });
+  document.getElementById("restoreBtn").addEventListener("click", function () {
+    bkText.value = "";
+    bkPanel.classList.add("show");
+  });
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    bkText.select();
+    try { navigator.clipboard.writeText(bkText.value); } catch (e) { document.execCommand("copy"); }
+  });
+  document.getElementById("doRestoreBtn").addEventListener("click", function () {
+    try {
+      var d = JSON.parse(bkText.value);
+      if (Array.isArray(d.days)) {
+        days = d.days;
+        bkPanel.classList.remove("show");
+        renderAll(); save();
+      } else { alert("That doesn't look like a valid backup."); }
+    } catch (e) { alert("Couldn't read that backup — check that the full text was pasted."); }
+  });
+  document.getElementById("closeBkBtn").addEventListener("click", function () {
+    bkPanel.classList.remove("show");
+  });
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    if (!confirm("Erase ALL tally data for the season? This can't be undone.")) return;
+    days = [];
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    renderAll();
+  });
+
+  // init
+  load();
+  renderCounters();
+  renderAll();
+})();
+</script>
+</body>
+</html>
