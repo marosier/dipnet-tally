@@ -108,11 +108,45 @@
   .bkpanel textarea { width: 100%; font-family: ui-monospace,Menlo,monospace; font-size: 11.5px; border-radius: 8px; border: 1px solid #D5DEDA; padding: 8px; resize: vertical; }
   .warn { background: #7A2E1E; color: #FFE9E2; padding: 12px 18px; font-size: 13.5px; line-height: 1.45; display: none; }
   .warn.show { display: block; }
+  select {
+    padding: 10px 12px; border-radius: 10px; border: 1.5px solid #D5DEDA;
+    font-size: 15px; font-family: inherit; background: #FAFCFB; width: 100%;
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7A73' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  .setup {
+    position: fixed; inset: 0; background: rgba(18,33,29,.94);
+    display: none; align-items: center; justify-content: center;
+    z-index: 10; padding: 20px;
+  }
+  .setup.show { display: flex; }
+  .setupcard { background: #fff; border-radius: 16px; padding: 22px; max-width: 380px; width: 100%; }
+  .setupcard h2 { margin: 0 0 6px; font-size: 20px; font-weight: 800; }
+  .setupcard p { margin: 0 0 14px; font-size: 13.5px; color: #6B7A73; line-height: 1.45; }
+  .setupcard input {
+    width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #D5DEDA;
+    font-size: 18px; font-family: inherit; background: #FAFCFB;
+    font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  }
+  .setupcard .logbtn { margin-top: 14px; }
+  .setuperr { color: #B4574A; font-size: 13px; margin-top: 8px; display: none; }
+  .setuperr.show { display: block; }
 </style>
 </head>
 <body>
 
 <div class="warn" id="warnBanner"></div>
+
+<div class="setup" id="setupOverlay">
+  <div class="setupcard">
+    <h2>Season setup</h2>
+    <p>Enter your 2026 Upper Cook Inlet Personal Use permit number. You'll only do this once — it stays saved on this phone for the season.</p>
+    <input type="text" id="permitInput" inputmode="numeric" placeholder="Permit number">
+    <div class="setuperr" id="setupErr">Please enter a permit number.</div>
+    <button class="logbtn" id="permitSaveBtn">Save &amp; start tallying</button>
+  </div>
+</div>
 
 <header>
   <div class="wrap">
@@ -121,7 +155,7 @@
         <div class="eyebrow">ADF&amp;G · Upper Cook Inlet · Personal Use · 2026</div>
         <h1>Harvest Tally</h1>
       </div>
-      <div class="permit"><small>Permit</small><b>4617116</b></div>
+      <div class="permit"><small>Permit</small><b id="permitNum">—</b></div>
     </div>
     <div class="gaugelabels">
       <span style="font-weight:700">Season salmon <span id="gSalmon" style="color:#9BD4C4">0</span><span style="opacity:.6"> / 75</span></span>
@@ -150,6 +184,17 @@
         <button data-g="Yes">Yes</button>
       </div>
     </div>
+  </div>
+  <div class="metarow" style="margin-top:0">
+    <label class="field">
+      <span class="label">Tally taker</span>
+      <select id="takerSel">
+        <option>Mark</option>
+        <option>Henry</option>
+        <option>Louis</option>
+        <option>Luke</option>
+      </select>
+    </label>
   </div>
   <div class="label">Location fished (choose one)</div>
   <div class="locgrid" id="locGrid"></div>
@@ -201,6 +246,7 @@
   var KEY = "uci-permit-2026";
 
   var days = [], draft = {}, location = "", guide = "No", expanded = {};
+  var permit = "";
   var storageOk = true;
 
   function emptyCounts() {
@@ -251,13 +297,14 @@
       if (raw) {
         var d = JSON.parse(raw);
         if (Array.isArray(d.days)) days = d.days;
+        if (typeof d.permit === "string") permit = d.permit;
       }
     } catch (e) {}
   }
   function save() {
     if (!storageOk) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ days: days }));
+      localStorage.setItem(KEY, JSON.stringify({ permit: permit, days: days }));
       note("Saved ✓");
       setTimeout(function () { note(""); }, 1500);
     } catch (e) {
@@ -321,7 +368,9 @@
           var chips = SPECIES.filter(function (s) { return t.counts[s.key] > 0; }).map(function (s) {
             return '<span class="chip"><span class="dot" style="background:' + s.color + '"></span>' + t.counts[s.key] + '</span>';
           }).join("") || '<span style="opacity:.5;font-size:13px">no catch</span>';
-          html += '<div class="trow"><span class="ttime">' + t.time + '</span><span class="tchips">' + chips + '</span>' +
+          html += '<div class="trow"><span class="ttime">' + t.time +
+            (t.by ? '<br><span style="font-weight:700;color:#33413B">' + t.by + '</span>' : '') +
+            '</span><span class="tchips">' + chips + '</span>' +
             '<button class="del" data-day="' + d.date + '" data-tally="' + ti + '" aria-label="Delete tally">✕</button></div>';
         });
         html += '<div class="totalrow"><span class="lbl">DAILY TOTAL</span><span class="tchips">' +
@@ -388,7 +437,11 @@
 
   document.getElementById("logBtn").addEventListener("click", function () {
     if (!location) return;
-    var tally = { time: timeStr(), counts: JSON.parse(JSON.stringify(draft)) };
+    var tally = {
+      time: timeStr(),
+      by: document.getElementById("takerSel").value,
+      counts: JSON.parse(JSON.stringify(draft))
+    };
     var date = dateInput.value || todayStr();
     var ex = days.find(function (d) { return d.date === date; });
     if (ex) {
@@ -433,7 +486,7 @@
   // backup / restore / reset
   var bkPanel = document.getElementById("bkPanel"), bkText = document.getElementById("bkText");
   document.getElementById("backupBtn").addEventListener("click", function () {
-    bkText.value = JSON.stringify({ days: days });
+    bkText.value = JSON.stringify({ permit: permit, days: days });
     bkPanel.classList.add("show");
   });
   document.getElementById("restoreBtn").addEventListener("click", function () {
@@ -449,6 +502,10 @@
       var d = JSON.parse(bkText.value);
       if (Array.isArray(d.days)) {
         days = d.days;
+        if (typeof d.permit === "string" && d.permit) {
+          permit = d.permit;
+          updatePermitDisplay();
+        }
         bkPanel.classList.remove("show");
         renderAll(); save();
       } else { alert("That doesn't look like a valid backup."); }
@@ -458,16 +515,40 @@
     bkPanel.classList.remove("show");
   });
   document.getElementById("resetBtn").addEventListener("click", function () {
-    if (!confirm("Erase ALL tally data for the season? This can't be undone.")) return;
-    days = [];
+    if (!confirm("Erase ALL tally data for the season, including the permit number? This can't be undone.")) return;
+    days = []; permit = "";
     try { localStorage.removeItem(KEY); } catch (e) {}
     renderAll();
+    updatePermitDisplay();
+    document.getElementById("permitInput").value = "";
+    document.getElementById("setupOverlay").classList.add("show");
+  });
+
+  // permit setup
+  function updatePermitDisplay() {
+    document.getElementById("permitNum").textContent = permit || "—";
+  }
+  document.getElementById("permitSaveBtn").addEventListener("click", function () {
+    var v = document.getElementById("permitInput").value.trim();
+    if (!v) {
+      document.getElementById("setupErr").classList.add("show");
+      return;
+    }
+    document.getElementById("setupErr").classList.remove("show");
+    permit = v;
+    updatePermitDisplay();
+    document.getElementById("setupOverlay").classList.remove("show");
+    save();
   });
 
   // init
   load();
   renderCounters();
   renderAll();
+  updatePermitDisplay();
+  if (!permit) {
+    document.getElementById("setupOverlay").classList.add("show");
+  }
 })();
 </script>
 </body>
