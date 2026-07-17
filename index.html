@@ -200,9 +200,9 @@
   </div>
   <div class="label">Location fished (choose one)</div>
   <div class="locgrid" id="locGrid"></div>
-  <div class="label" style="margin-top:18px">Fish to tally</div>
+  <div class="label" style="margin-top:18px">Fish this tally</div>
   <div class="ctrgrid" id="ctrGrid"></div>
-  <button class="logbtn" id="logBtn" disabled>Log fish — no catch</button>
+  <button class="logbtn" id="logBtn" disabled>Log trip — no catch</button>
   <div class="hint" id="logHint">Pick a location to log — ADF&amp;G requires reporting every day fished, even with no catch.</div>
 </section>
 
@@ -371,7 +371,7 @@
         html += '<div class="daybody">';
         d.tallies.forEach(function (t, ti) {
           var chips = SPECIES.filter(function (s) { return t.counts[s.key] > 0; }).map(function (s) {
-            return '<span class="chip"><span class="dot" style="background:' + s.color + '"></span>' + t.counts[s.key] + '</span>';
+            return '<span class="chip">' + s.label + ' ' + t.counts[s.key] + '</span>';
           }).join("") || '<span style="opacity:.5;font-size:13px">no catch</span>';
           html += '<div class="trow"><span class="ttime">' + t.time +
             (t.by ? '<br><span style="font-weight:700;color:#33413B">' + t.by + '</span>' : '') +
@@ -380,7 +380,7 @@
         });
         html += '<div class="totalrow"><span class="lbl">DAILY TOTAL</span><span class="tchips">' +
           SPECIES.map(function (s) {
-            return '<span class="chip bold"><span class="dot" style="background:' + s.color + '"></span>' + dayTotal[s.key] + '</span>';
+            return '<span class="chip bold">' + s.label + ' ' + dayTotal[s.key] + '</span>';
           }).join("") + '</span></div>';
         html += '<label class="xferrow"><input type="checkbox" data-xfer="' + d.date + '"' + (d.transferred ? " checked" : "") + '> Recorded on paper permit / ADF&amp;G app</label>';
         html += '</div>';
