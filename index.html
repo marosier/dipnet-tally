@@ -141,9 +141,11 @@
 <div class="setup" id="setupOverlay">
   <div class="setupcard">
     <h2>Season setup</h2>
-    <p>Enter your 2026 Upper Cook Inlet Personal Use permit number. You'll only do this once — it stays saved on this phone for the season.</p>
+    <p>Enter your 2026 Upper Cook Inlet Personal Use permit number and your household's salmon limit (25 for the head of household + 10 per additional member). You'll only do this once — it stays saved on this phone for the season.</p>
     <input type="text" id="permitInput" inputmode="numeric" placeholder="Permit number">
-    <div class="setuperr" id="setupErr">Please enter a permit number.</div>
+    <div style="height:10px"></div>
+    <input type="text" id="limitInput" inputmode="numeric" placeholder="Season salmon limit (e.g. 75)">
+    <div class="setuperr" id="setupErr">Please enter a permit number and a salmon limit.</div>
     <button class="logbtn" id="permitSaveBtn">Save &amp; start tallying</button>
   </div>
 </div>
@@ -158,7 +160,7 @@
       <div class="permit"><small>Permit</small><b id="permitNum">—</b></div>
     </div>
     <div class="gaugelabels">
-      <span style="font-weight:700">Season salmon <span id="gSalmon" style="color:#9BD4C4">0</span><span style="opacity:.6"> / 75</span></span>
+      <span style="font-weight:700">Season salmon <span id="gSalmon" style="color:#9BD4C4">0</span><span style="opacity:.6"> / <span id="gLimit">75</span></span></span>
       <span style="opacity:.7">Flounder <span id="gFlounder">0</span> / 10</span>
     </div>
     <div class="track">
@@ -243,6 +245,7 @@
   var SALMON_KEYS = ["red", "chum", "king", "coho", "pink"];
   var LOCATIONS = ["Kenai River", "Fish Creek", "Kasilof River", "Susitna River"];
   var SALMON_LIMIT = 75, FLOUNDER_LIMIT = 10;
+  var salmonLimit = SALMON_LIMIT;
   var KEY = "uci-permit-2026";
 
   var days = [], draft = {}, location = "", guide = "No", expanded = {};
@@ -298,13 +301,14 @@
         var d = JSON.parse(raw);
         if (Array.isArray(d.days)) days = d.days;
         if (typeof d.permit === "string") permit = d.permit;
+        if (d.limit && d.limit > 0) salmonLimit = Math.floor(d.limit);
       }
     } catch (e) {}
   }
   function save() {
     if (!storageOk) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ permit: permit, days: days }));
+      localStorage.setItem(KEY, JSON.stringify({ permit: permit, limit: salmonLimit, days: days }));
       note("Saved ✓");
       setTimeout(function () { note(""); }, 1500);
     } catch (e) {
@@ -324,11 +328,12 @@
     }, []));
     var sal = salmonOf(totals);
     document.getElementById("gSalmon").textContent = sal;
-    document.getElementById("gSalmon").style.color = sal >= SALMON_LIMIT * 0.9 ? "#FF9E7A" : "#9BD4C4";
+    document.getElementById("gSalmon").style.color = sal >= salmonLimit * 0.9 ? "#FF9E7A" : "#9BD4C4";
+    document.getElementById("gLimit").textContent = salmonLimit;
     document.getElementById("gFlounder").textContent = totals.flounder;
     var fill = document.getElementById("gaugeFill");
-    fill.style.width = Math.min(100, sal / SALMON_LIMIT * 100) + "%";
-    fill.className = "fill" + (sal >= SALMON_LIMIT * 0.9 ? " hot" : "");
+    fill.style.width = Math.min(100, sal / salmonLimit * 100) + "%";
+    fill.className = "fill" + (sal >= salmonLimit * 0.9 ? " hot" : "");
     document.getElementById("speciesStrip").innerHTML = SPECIES.map(function (s) {
       return '<span class="pill"><span class="dot" style="background:' + s.color + '"></span>' + s.label + ' <b>&nbsp;' + totals[s.key] + '</b></span>';
     }).join("");
@@ -486,7 +491,7 @@
   // backup / restore / reset
   var bkPanel = document.getElementById("bkPanel"), bkText = document.getElementById("bkText");
   document.getElementById("backupBtn").addEventListener("click", function () {
-    bkText.value = JSON.stringify({ permit: permit, days: days });
+    bkText.value = JSON.stringify({ permit: permit, limit: salmonLimit, days: days });
     bkPanel.classList.add("show");
   });
   document.getElementById("restoreBtn").addEventListener("click", function () {
@@ -506,6 +511,7 @@
           permit = d.permit;
           updatePermitDisplay();
         }
+        if (d.limit && d.limit > 0) salmonLimit = Math.floor(d.limit);
         bkPanel.classList.remove("show");
         renderAll(); save();
       } else { alert("That doesn't look like a valid backup."); }
@@ -516,11 +522,12 @@
   });
   document.getElementById("resetBtn").addEventListener("click", function () {
     if (!confirm("Erase ALL tally data for the season, including the permit number? This can't be undone.")) return;
-    days = []; permit = "";
+    days = []; permit = ""; salmonLimit = SALMON_LIMIT;
     try { localStorage.removeItem(KEY); } catch (e) {}
     renderAll();
     updatePermitDisplay();
     document.getElementById("permitInput").value = "";
+    document.getElementById("limitInput").value = "";
     document.getElementById("setupOverlay").classList.add("show");
   });
 
@@ -530,14 +537,17 @@
   }
   document.getElementById("permitSaveBtn").addEventListener("click", function () {
     var v = document.getElementById("permitInput").value.trim();
-    if (!v) {
+    var lim = parseInt(document.getElementById("limitInput").value.trim(), 10);
+    if (!v || !(lim > 0)) {
       document.getElementById("setupErr").classList.add("show");
       return;
     }
     document.getElementById("setupErr").classList.remove("show");
     permit = v;
+    salmonLimit = lim;
     updatePermitDisplay();
     document.getElementById("setupOverlay").classList.remove("show");
+    renderAll();
     save();
   });
 
